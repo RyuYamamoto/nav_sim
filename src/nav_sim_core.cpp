@@ -10,9 +10,13 @@ void NavSim::initialize()
   pnh_.param<double>("limit_view_angle", limit_view_angle_, 45.0);
   pnh_.param<std::string>("config", config_, "");
 
-  distance_until_noise_ = getExponentialDistribution(5.0);
+  distance_until_noise_ = getExponentialDistribution(1.0/5.0);
   bias_rate_v_ = getGaussDistribution(1.0, 0.1);
   bias_rate_w_ = getGaussDistribution(1.0, 0.1);
+  time_until_escape_ = getExponentialDistribution(1.0/60.0);
+  time_until_stuck_ = getExponentialDistribution(1.0/60.0);
+
+  std::cout << time_until_stuck_ << " " << time_until_escape_ << std::endl;
 
   current_velocity_publisher_ = pnh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
   ground_truth_publisher_ = pnh_.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
@@ -29,6 +33,9 @@ void NavSim::initialize()
   landmark_pose_list_ = parseYaml(config_);
 
   timer_ = nh_.createTimer(ros::Duration(period_), &NavSim::timerCallback, this);
+
+  current_stamp_ = ros::Time::now();
+  previous_time_ = current_stamp_.toSec();
 }
 
 std::vector<Landmark> NavSim::parseYaml(const std::string yaml)
@@ -110,11 +117,15 @@ void NavSim::decision(
   State & state, geometry_msgs::PoseStamped & pose, double v, double w, std::string frame_id,
   ros::Time stamp, double sampling_time, bool error)
 {
+  if(error) stuck(v, w, sampling_time);
+
   state.yaw_ += w * sampling_time;
   state.x_ += v * std::cos(state.yaw_) * sampling_time;
   state.y_ += v * std::sin(state.yaw_) * sampling_time;
 
-  if (error) noise(state, sampling_time);
+  if (error) {
+    noise(state, sampling_time);
+  }
 
   pose = convertToPose<State>(state);
   pose.header.stamp = stamp;
@@ -124,8 +135,8 @@ void NavSim::decision(
 
 void NavSim::timerCallback(const ros::TimerEvent & e)
 {
-  const auto current_stamp = ros::Time::now();
-  const double current_time = current_stamp.toSec();
+  current_stamp_ = ros::Time::now();
+  const double current_time = current_stamp_.toSec();
   const double sampling_time = current_time - previous_time_;
 
   // calculate velocity using p control.
@@ -134,11 +145,11 @@ void NavSim::timerCallback(const ros::TimerEvent & e)
 
   // move as ground truth
   decision(
-    ground_truth_, ground_truth_pose_, v_, w_, "ground_truth", current_stamp, sampling_time, false);
+    ground_truth_, ground_truth_pose_, v_, w_, "ground_truth", current_stamp_, sampling_time, false);
   // move as current pose with error
   decision(
     current_state_, current_pose_, bias(v_, bias_rate_v_), bias(w_, bias_rate_w_), "base_link",
-    current_stamp, sampling_time, true);
+    current_stamp_, sampling_time, true);
 
   // update velocity
   v_ += (plan_v * sampling_time);
@@ -213,12 +224,36 @@ tf2::Transform NavSim::convertToTransform(geometry_msgs::PoseStamped pose)
   return transform;
 }
 
+void NavSim::stuck(double &velocity, double &omega, double time_interval)
+{
+  if(is_stuck_) {
+    time_until_escape_ -= time_interval;
+    if(time_until_escape_ <= 0.0) {
+      time_until_escape_ += getExponentialDistribution(1.0/60.0);
+      is_stuck_ = false;
+    }
+  } else {
+    time_until_stuck_ -= time_interval;
+    if(time_until_stuck_ <= 0.0) {
+      time_until_stuck_ += getExponentialDistribution(1.0/60.0);
+      is_stuck_ = true;
+    }
+  }
+
+  std::cout << time_until_escape_ << " " << time_until_stuck_ <<std::endl;
+
+  if(is_stuck_) {
+    velocity = 0;
+    omega = 0;
+  }
+}
+
 void NavSim::noise(State & state, double time_interval)
 {
   distance_until_noise_ = distance_until_noise_ - (std::fabs(cmd_vel_.linear.x) * time_interval +
                                                    std::fabs(cmd_vel_.angular.z) * time_interval);
   if (distance_until_noise_ <= 0.0) {
-    distance_until_noise_ += getExponentialDistribution(5.0);
+    distance_until_noise_ += getExponentialDistribution(1.0/5.0);
     state.yaw_ += getGaussDistribution(0.0, M_PI / 60.0);
   }
 }

@@ -59,6 +59,7 @@ public:
     State & state, geometry_msgs::PoseStamped & pose, double v, double w, std::string frame_id,
     ros::Time stamp, double sampling_time, bool error);
 
+  void stuck(double &velocity, double &omega, double time_interval);
   void noise(State & state, double time_interval);
   inline double bias(double input, double coeff) { return input * coeff; }
   inline double getExponentialDistribution(double parameter)
@@ -96,11 +97,15 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   ros::Timer timer_;
+  ros::Time current_stamp_;
 
   // noise parameter
   double distance_until_noise_;
   double bias_rate_v_;
   double bias_rate_w_;
+  double time_until_stuck_;
+  double time_until_escape_;
+  bool is_stuck_{false};
 
   double period_;
   double limit_view_angle_;
