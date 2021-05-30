@@ -240,8 +240,6 @@ void NavSim::stuck(double &velocity, double &omega, double time_interval)
     }
   }
 
-  std::cout << time_until_escape_ << " " << time_until_stuck_ <<std::endl;
-
   if(is_stuck_) {
     velocity = 0;
     omega = 0;
