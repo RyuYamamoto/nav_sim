@@ -123,9 +123,7 @@ void NavSim::decision(
   state.x_ += v * std::cos(state.yaw_) * sampling_time;
   state.y_ += v * std::sin(state.yaw_) * sampling_time;
 
-  if (error) {
-    noise(state, sampling_time);
-  }
+  if (error) noise(state, sampling_time);
 
   pose = convertToPose<State>(state);
   pose.header.stamp = stamp;
@@ -231,18 +229,16 @@ void NavSim::stuck(double &velocity, double &omega, double time_interval)
     if(time_until_escape_ <= 0.0) {
       time_until_escape_ += getExponentialDistribution(1.0/60.0);
       is_stuck_ = false;
+      return;
     }
+    velocity = 0.0;
+    omega = 0.0;
   } else {
     time_until_stuck_ -= time_interval;
     if(time_until_stuck_ <= 0.0) {
       time_until_stuck_ += getExponentialDistribution(1.0/60.0);
       is_stuck_ = true;
     }
-  }
-
-  if(is_stuck_) {
-    velocity = 0;
-    omega = 0;
   }
 }
 
