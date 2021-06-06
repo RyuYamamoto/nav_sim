@@ -117,7 +117,9 @@ void NavSim::decision(
   State & state, geometry_msgs::PoseStamped & pose, double v, double w, std::string frame_id,
   ros::Time stamp, double sampling_time, bool error)
 {
+#if 0
   if(error) stuck(v, w, sampling_time);
+#endif
 
   state.yaw_ += w * sampling_time;
   state.x_ += v * std::cos(state.yaw_) * sampling_time;
