@@ -10,13 +10,14 @@ void NavSim::initialize()
   pnh_.param<double>("limit_view_angle", limit_view_angle_, 45.0);
   pnh_.param<std::string>("config", config_, "");
 
+  // 移動に対して発生する雑音
   distance_until_noise_ = getExponentialDistribution(1.0/5.0);
+  // 速度に対するバイアス誤差
   bias_rate_v_ = getGaussDistribution(1.0, 0.1);
   bias_rate_w_ = getGaussDistribution(1.0, 0.1);
+  // スタック
   time_until_escape_ = getExponentialDistribution(1.0/60.0);
   time_until_stuck_ = getExponentialDistribution(1.0/60.0);
-
-  std::cout << time_until_stuck_ << " " << time_until_escape_ << std::endl;
 
   current_velocity_publisher_ = pnh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
   ground_truth_publisher_ = pnh_.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
