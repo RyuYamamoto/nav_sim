@@ -20,7 +20,9 @@ void NavSim::initialize()
   // スタック
   time_until_escape_ = getExponentialDistribution(1.0 / 60.0);
   time_until_stuck_ = getExponentialDistribution(1.0 / 60.0);
-  // センサ値に対する雑音
+  // センサ値に対するバイアス
+  distance_noise_std_ = getGaussDistribution(0.0, distance_noise_rate_);
+  direction_noise_std_ = getGaussDistribution(0.0, direction_noise_);
 
   current_velocity_publisher_ = pnh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
   ground_truth_publisher_ = pnh_.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
@@ -86,8 +88,8 @@ void NavSim::observation(std::vector<Landmark> landmark_queue)
     const double distance = std::sqrt(
       std::pow(base_to_landmark.getOrigin().x(), 2) +
       std::pow(base_to_landmark.getOrigin().y(), 2));
-    // 観測情報に対して雑音を乗せる
-    observation_landmark_list_.emplace_back(observationNoise(distance, diff_deg));
+    // 観測情報に対して雑音を乗せる(雑音->バイアス)
+    observation_landmark_list_.emplace_back(observationBias(observationNoise(std::make_pair(distance, diff_deg))));
     // 極座標から2次元座標に変換する(可視化のため)
     const double base_to_landmark_x_with_noise =
       observation_landmark_list_.back().first *
@@ -268,12 +270,24 @@ void NavSim::stuck(double & velocity, double & omega, double time_interval)
 }
 
 // 観測情報に対する雑音
-std::pair<double, double> NavSim::observationNoise(double distance, double degree)
+std::pair<double, double> NavSim::observationNoise(const std::pair<double, double> position)
 {
+  const auto distance = position.first;
+  const auto degree = position.second;
+
   const double gauss_for_distance = getGaussDistribution(distance, distance * distance_noise_rate_);
   const double gauss_for_degree = getGaussDistribution(degree, direction_noise_);
 
   return std::make_pair(gauss_for_distance, gauss_for_degree);
+}
+
+// 観測情報に対するバイアス誤差
+std::pair<double, double> NavSim::observationBias(const std::pair<double, double> position)
+{
+  const auto distance = position.first;
+  const auto degree = position.second;
+
+  return std::make_pair(distance + distance * distance_noise_std_, degree + direction_noise_std_);
 }
 
 // 移動に対する雑音

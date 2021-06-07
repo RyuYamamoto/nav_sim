@@ -61,7 +61,8 @@ public:
 
   void stuck(double &velocity, double &omega, double time_interval);
   void noise(State & state, double time_interval);
-  std::pair<double, double> observationNoise(double distance, double degree);
+  std::pair<double, double> observationNoise(const std::pair<double, double> position);
+  std::pair<double, double> observationBias(const std::pair<double, double> position);
   inline double bias(double input, double coeff) { return input * coeff; }
   inline double getExponentialDistribution(double parameter)
   {
@@ -102,7 +103,9 @@ private:
 
   // noise parameter
   double distance_noise_rate_;
+  double distance_noise_std_;
   double direction_noise_;
+  double direction_noise_std_;
   double distance_until_noise_;
   double bias_rate_v_;
   double bias_rate_w_;
