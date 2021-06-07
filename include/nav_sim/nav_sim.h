@@ -61,6 +61,7 @@ public:
 
   void stuck(double &velocity, double &omega, double time_interval);
   void noise(State & state, double time_interval);
+  std::pair<double, double> observationNoise(double distance, double degree);
   inline double bias(double input, double coeff) { return input * coeff; }
   inline double getExponentialDistribution(double parameter)
   {
@@ -100,6 +101,8 @@ private:
   ros::Time current_stamp_;
 
   // noise parameter
+  double distance_noise_rate_;
+  double direction_noise_;
   double distance_until_noise_;
   double bias_rate_v_;
   double bias_rate_w_;
@@ -115,7 +118,10 @@ private:
 
   std::string config_;
 
+  // ランドマークの真値(world座標系)
   std::vector<Landmark> landmark_pose_list_;
+  // ロボットから見たランドマークの位置を極座標で計算後雑音を乗せたもの
+  std::vector<std::pair<double, double>> observation_landmark_list_;
 
   nav_sim::LandmarkInfo landmark_queue_;
 

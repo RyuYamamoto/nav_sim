@@ -5,6 +5,8 @@ const double NOISE_STD = M_PI / 60.0;
 
 void NavSim::initialize()
 {
+  pnh_.param<double>("distance_noise_rate", distance_noise_rate_, 0.1);
+  pnh_.param<double>("direction_noise", direction_noise_, M_PI/90);
   pnh_.param<double>("period", period_, 0.01);
   pnh_.param<double>("error_coeff", error_coeff_, 0.01);
   pnh_.param<double>("limit_view_angle", limit_view_angle_, 45.0);
@@ -18,6 +20,7 @@ void NavSim::initialize()
   // スタック
   time_until_escape_ = getExponentialDistribution(1.0/60.0);
   time_until_stuck_ = getExponentialDistribution(1.0/60.0);
+  // センサ値に対する雑音
 
   current_velocity_publisher_ = pnh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
   ground_truth_publisher_ = pnh_.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
@@ -62,6 +65,9 @@ void NavSim::observation(std::vector<Landmark> landmark_queue)
   geometry_msgs::PoseStamped path_pose;
   visualization_msgs::MarkerArray landmark_info_array;
   visualization_msgs::Marker landmark_info;
+
+  observation_landmark_list_.clear();
+
   for (auto landmark : landmark_pose_list_) {
     geometry_msgs::PoseStamped landmark_pose = convertToPose<Landmark>(landmark);
 
@@ -74,12 +80,16 @@ void NavSim::observation(std::vector<Landmark> landmark_queue)
                                  map_to_landmark.getOrigin().y() - map_to_base.getOrigin().y(),
                                  map_to_landmark.getOrigin().x() - map_to_base.getOrigin().x()) -
                                current_state_.yaw_;
+    // ランドマークの位置を極座標系で計算する
     const double diff_deg =
       normalizeDegree((diff_landmark_yaw * 180.0 / M_PI));  // normalize angle -180~180
     const double distance = std::sqrt(
       std::pow(base_to_landmark.getOrigin().x(), 2) +
       std::pow(base_to_landmark.getOrigin().y(), 2));
-    if (diff_deg < limit_view_angle_ and -limit_view_angle_ < diff_deg) {
+    // 観測情報に対して雑音を乗せる
+    observation_landmark_list_.emplace_back(observationNoise(distance, diff_deg));
+
+    if (diff_deg < limit_view_angle_ && -limit_view_angle_ < diff_deg) {
       path_pose.pose.position.x = 0.0;
       path_pose.pose.position.y = 0.0;
       path.poses.push_back(path_pose);
@@ -89,8 +99,8 @@ void NavSim::observation(std::vector<Landmark> landmark_queue)
 
       landmark_info.header.frame_id = "base_link";
       landmark_info.header.stamp = ros::Time::now();
-      landmark_info.text = "distance: " + std::to_string(distance) + " m \n" +
-                           "yaw_diff: " + std::to_string(diff_deg) + " deg";
+      landmark_info.text = "distance: " + std::to_string(observation_landmark_list_.back().first) + " m \n" +
+                           "yaw_diff: " + std::to_string(observation_landmark_list_.back().second) + " deg";
       landmark_info.pose.position.x = base_to_landmark.getOrigin().x() / 2.0;
       landmark_info.pose.position.y = base_to_landmark.getOrigin().y() / 2.0;
       landmark_info.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
@@ -225,6 +235,7 @@ tf2::Transform NavSim::convertToTransform(geometry_msgs::PoseStamped pose)
   return transform;
 }
 
+// スタックのシミュレーション
 void NavSim::stuck(double &velocity, double &omega, double time_interval)
 {
   if(is_stuck_) {
@@ -245,6 +256,16 @@ void NavSim::stuck(double &velocity, double &omega, double time_interval)
   }
 }
 
+// 観測情報に対する雑音
+std::pair<double, double> NavSim::observationNoise(double distance, double degree)
+{
+  const double gauss_for_distance = getGaussDistribution(distance, distance*distance_noise_rate_);
+  const double gauss_for_degree = getGaussDistribution(degree, direction_noise_);
+
+  return std::make_pair(gauss_for_distance, gauss_for_degree);
+}
+
+// 移動に対する雑音
 void NavSim::noise(State & state, double time_interval)
 {
   distance_until_noise_ = distance_until_noise_ - (std::fabs(cmd_vel_.linear.x) * time_interval +
