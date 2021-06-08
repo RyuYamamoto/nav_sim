@@ -124,8 +124,6 @@ private:
 
   // ランドマークの真値(world座標系)
   std::vector<Landmark> landmark_pose_list_;
-  // ロボットから見たランドマークの位置を極座標で計算後雑音を乗せたもの
-  std::vector<std::pair<double, double>> observation_landmark_list_;
 
   nav_sim::LandmarkInfo landmark_queue_;
 
