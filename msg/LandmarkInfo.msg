@@ -1,3 +1,4 @@
 Header header
-geometry_msgs/Pose[] pose
+float32 lenght
+float32 theta
 string id

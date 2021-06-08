@@ -26,7 +26,7 @@ void NavSim::initialize()
 
   current_velocity_publisher_ = pnh_.advertise<geometry_msgs::TwistStamped>("twist", 10);
   ground_truth_publisher_ = pnh_.advertise<geometry_msgs::PoseStamped>("ground_truth", 10);
-  observation_publisher_ = pnh_.advertise<nav_sim::LandmarkInfo>("observation", 10);
+  observation_publisher_ = pnh_.advertise<nav_sim::LandmarkInfoArray>("observation", 10);
   odometry_publisher_ = pnh_.advertise<nav_msgs::Odometry>("odom", 10);
 
   landmark_info_pub_ = pnh_.advertise<visualization_msgs::MarkerArray>("landmark_info", 1);
