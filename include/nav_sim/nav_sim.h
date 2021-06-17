@@ -66,19 +66,22 @@ public:
 
   template <typename PoseType>
   geometry_msgs::PoseStamped convertToPose(PoseType state);
-  void updateBasePose(const geometry_msgs::PoseWithCovarianceStamped pose_with_covariance, State &state);
+  void updateBasePose(
+    const geometry_msgs::PoseWithCovarianceStamped pose_with_covariance, State & state);
   nav_msgs::Odometry convertToOdometry(const geometry_msgs::PoseStamped pose);
   tf2::Transform convertToTransform(const geometry_msgs::PoseStamped pose);
   std::vector<Landmark> parseYaml(const std::string yaml);
   void initialize();
-  void publishPoseToTransform(const geometry_msgs::PoseStamped pose, const std::string child_frame_id);
+  void publishPoseToTransform(
+    const geometry_msgs::PoseStamped pose, const std::string child_frame_id);
   void velocityFilter(double & target_v, double & target_w);
   void observation(std::vector<Landmark> landmark_queue);
+  State motion(const double vel, const double omega, const double dt, State pose);
   void decision(
     State & state, geometry_msgs::PoseStamped & pose, double v, double w, std::string frame_id,
     ros::Time stamp, double sampling_time, bool error);
 
-  void stuck(double &velocity, double &omega, double time_interval);
+  void stuck(double & velocity, double & omega, double time_interval);
   void noise(State & state, double time_interval);
   std::pair<double, double> observationNoise(const std::pair<double, double> position);
   std::pair<double, double> observationBias(const std::pair<double, double> position);
