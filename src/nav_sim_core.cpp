@@ -115,7 +115,7 @@ void NavSim::observation(std::vector<Landmark> landmark_queue)
       landmark_info.pose.position.x = base_to_landmark.getOrigin().x() / 2.0;
       landmark_info.pose.position.y = base_to_landmark.getOrigin().y() / 2.0;
       landmark_info.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-      landmark_info.id = landmark_id;
+      landmark_info.id = landmark_id++;
       landmark_info.scale.x = 0.1;
       landmark_info.scale.y = 0.1;
       landmark_info.scale.z = 0.1;
